@@ -1,0 +1,139 @@
+---
+title: Population differentiation determined from putative adaptive SNP markers in
+  Eulachon
+author: "Evelyn Takyi"
+date: "May 8, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+#Requried packages 
+
+###treemap, readr, devtools,gstudio,pegas, ape, ade4,adegenet,diveRsity, hierfstat, poppr, readxl
+```{r echo=FALSE, include=FALSE}
+library(treemap)
+library(readr)
+require(devtools)
+library(gstudio)
+library(readr)
+library(pegas)
+library(ape)  
+library(ade4)
+library(adegenet)
+library(diveRsity)
+library(doParallel)
+library(foreach)
+library(genetics)
+library(hierfstat)
+library(iterators)
+library(poppr)
+library(readxl)
+```
+
+# Importing data into R. 
+
+```{r }
+mon <- read.genepop("EulachonSig.gen")
+```
+
+#summary of imported data. 
+
+
+```{r }
+summary(mon)
+```
+
+#Names of the 12 populations of samples used in analysis
+```{r}
+popNames(mon)
+```
+#convert dataset into genind objects for each population
+```{r echo=TRUE}
+pop_label <- c(rep("SS08",41),rep("BELCOL03",33),
+               rep("COW02",37),rep("CR12",22),rep("FRAS09",40),rep("KC02",36),
+               rep("KEM01",42),rep("KEN04",71),rep("KLK02",41),rep("SKE10",33),rep("STIK06",66),rep("TMR01",32))
+```
+
+```{r}
+#. Creates a list of genind objects for each population
+pops_separat <- seppop(mon,pop=pop_label)
+pops_separat$COW02
+```
+#The mean observed and expected heterozygosity
+```{r}
+#. Compute the mean observed and expected heterzygosity for each population over all loci
+summaryCOW02 <- summary(pops_separat$COW02)
+mean(summaryCOW02$Hobs)
+mean(summaryCOW02$Hexp)
+```
+#compute allelic richness for each population
+```{r}
+ba <- divBasic(infile ="EulachonSig.gen" , outfile = "by", gp = 3, bootstraps = 1000,HWEexact = FALSE, mcRep = 2000)
+Allerich <- summary(ba$Allelic_richness)
+```
+
+
+```{r}
+#. Mean allelic richness and mean heterozygosity for each population
+heteroz <- read_excel("~/Downloads/Microsaetllit/heteroz.xlsx")
+heteroz
+```
+
+```{r}
+#. The mean number of alleles (Ar) were plotted to determine the genetic diversity in each population. 
+barplot(heteroz$Allelicrich, main="plot of the mean number of alleles vs population",ylab="Allelic richness", xlab="pop", names= heteroz$pop, las = 3)
+
+```
+
+#Test for genetic differentiation between pairs of population
+
+```{r}
+#. Population structure  was determined using the test for genetic differentiation between pairs of populations carried out using the Weir and Cockerham’s estimate 1984 of genetic distance in diversity package.
+wc(mon)
+GF <- genet.dist(mon, method = "WC84")
+GF
+```
+#Discriminant Analysis of Principal Components(DAPC)
+
+```{r include=FALSE}
+X <- scaleGen(mon, NA.method="mean")
+pca1 <- dudi.pca(X,cent=TRUE,scale=FALSE,scannf=FALSE,nf=3)
+  barplot(pca1$eig[1:50],main="PCA eigenvalues", col=heat.colors(50))
+```
+
+```{r}
+#. using Kmeans and DAPC in adegenet
+#. Region membership for each  group of sample was determined by DAPC conducted in R with the package ADEGENET to identify and describe clusters of genetically related individuals. 
+
+set.seed(20160308) # Setting a seed for a consistent result
+grp <- find.clusters(mon, max.n.clust = 10, n.pca = 20, choose.n.clust = FALSE) 
+
+names(grp)
+grp$grp
+dapc1 <- dapc(mon, grp$grp, n.pca = 20, n.da = 6) 
+scatter(dapc1) # plot of the group
+```
+
+
+##structure of the various groups with population sample names
+```{r}
+#This plane is to show the structure of the various groups of population
+s.class(pca1$li, pop(mon))
+title("PCA of microbov dataset\naxes 1-2")
+add.scatter.eig(pca1$eig[1:20], 3,1,2)
+```
+
+
+#Neighbourjoining Tree
+```{r}
+#A neighbour-joining tree ploted to visualize the distances for each of these loci sets based on the distance obtained.
+tree <- nj(GF)
+plot.phylo(tree)
+```
+
+#Reference 
+## publication
+Candy JR, Campbell NR, Grinnell MH, Beacham TD, Larson WA, Narum SR (2015) Population differentiation determined from putative neutral and divergent adaptive genetic markers in Eulachon (Thaleichthys pacificus, Osmeridae), an anadromous Pacific smelt. Molecular Ecology Resources 15(6): 1421–1434. http://dx.doi.org/10.1111/1755-0998.12400
+
+##Data obtained from Dryad
+Candy JR, Campbell NR, Beacham TD, Grinnell MH, Narum SR, Larson WA (2015) Data from: Population differentiation determined from putative neutral and divergent adaptive genetic markers in Eulachon (Thaleichthys pacificus, Osmeridae), an anadromous Pacific smelt. Dryad Digital Repository. http://dx.doi.org/10.5061/dryad.1797v
